@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="SMS Redirection"
+        android:textAlignment="center"
+        android:textStyle="bold"
+        android:textSize="22sp"
+        android:paddingBottom="10dp"
+        android:textColor="@android:color/black"/>
+
+    <TextView
+        android:id="@+id/tvSmsInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="O app captura todo SMS recebido (apenas se definido como aplicativo SMS padrão) e envia automaticamente ao endpoint informado."
+        android:textColor="#1565C0"
+        android:textSize="15sp"
+        android:padding="8dp"
+        android:textStyle="italic"
+        android:background="#EEF4FB"/>
+
+    <EditText
+        android:id="@+id/etEndpointUrl"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="URL do endpoint"
+        android:inputType="textUri"
+        android:layout_marginTop="16dp"/>
+
+    <EditText
+        android:id="@+id/etLogin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Usuário"
+        android:inputType="textEmailAddress"
+        android:layout_marginTop="12dp"/>
+
+    <EditText
+        android:id="@+id/etPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Senha"
+        android:inputType="text"
+        android:layout_marginTop="12dp"/>
+
+    <Button
+        android:id="@+id/btnSave"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Salvar configurações"
+        android:layout_marginTop="20dp"/>
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Status: aguardando ação"
+        android:paddingTop="22dp"
+        android:textAlignment="center"/>
+</LinearLayout>
