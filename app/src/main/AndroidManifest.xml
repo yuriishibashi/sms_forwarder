@@ -2,19 +2,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Permissão para apps usarem recursos de telefonia caso presente (bom para tablets, mas não obrigatório) -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
 
-    <!-- Permissões necessárias -->
+    <!-- Permissões essenciais para capturar e enviar SMS, acessar internet e mostrar notificações -->
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
     <uses-permission android:name="android.permission.READ_SMS"/>
     <uses-permission android:name="android.permission.SEND_SMS"/>
-    <uses-permission android:name="android.permission.RECEIVE_MMS"/>
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.BROADCAST_SMS"
-        tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.BROADCAST_WAP_PUSH"
-        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <!-- Acesso broadcast de SMS, apenas se necessário (normalmente protegido pelo sistema) -->
+    <uses-permission android:name="android.permission.BROADCAST_SMS" tools:ignore="ProtectedPermissions"/>
+    <uses-permission android:name="android.permission.BROADCAST_WAP_PUSH" tools:ignore="ProtectedPermissions"/>
 
     <application
         android:usesCleartextTraffic="true"
@@ -24,19 +26,28 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SmsForwarder">
 
-        <!-- Atividade principal -->
+        <!-- Activity principal, marcada como exportada para ser visível no launcher-->
         <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.APP_MESSAGING"/>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
 
-        <!-- Provider obrigatório fake -->
+        <!-- Receiver para captação de SMS (exportado pois será disparado pelo sistema) -->
+        <receiver
+            android:name=".receiver.SmsBroadcastReceiver"
+            android:permission="android.permission.BROADCAST_SMS"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Provider dummy: só mantenha caso sua lógica dependa! -->
         <provider
             android:name=".provider.SmsProvider"
             android:authorities="${applicationId}.smsprovider"
@@ -44,30 +55,20 @@
             android:grantUriPermissions="true"
             android:syncable="true" />
 
-        <!-- Service dummy para SMS -->
+        <!-- Service fake para RESPOND_VIA_MESSAGE, remova se não usa -->
         <service
             android:name=".service.HeadlessSmsSendService"
             android:permission="android.permission.SEND_RESPOND_VIA_MESSAGE"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE" />
+                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <data android:scheme="sms" />
-                <data android:scheme="smsto" />
-                <data android:scheme="mms" />
-                <data android:scheme="mmsto" />
+                <data android:scheme="sms"/>
+                <data android:scheme="smsto"/>
+                <data android:scheme="mms"/>
+                <data android:scheme="mmsto"/>
             </intent-filter>
         </service>
 
-        <!-- Receiver para SMS -->
-        <receiver
-            android:name=".receiver.SmsBroadcastReceiver"
-            android:permission="android.permission.BROADCAST_SMS"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </receiver>
     </application>
 </manifest>

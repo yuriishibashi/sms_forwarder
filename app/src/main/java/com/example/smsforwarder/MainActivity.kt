@@ -1,12 +1,15 @@
 package com.example.smsforwarder
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Telephony
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,12 +27,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvSmsInfo: TextView
     private lateinit var prefs: PreferencesHelper
 
+    private val handler = Handler(Looper.getMainLooper())
+    private val historyRunnable = object : Runnable {
+        override fun run() {
+            showHistory()
+            handler.postDelayed(this, 1000)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         prefs = PreferencesHelper(this)
-
         etEndpointUrl = findViewById(R.id.etEndpointUrl)
         etLogin = findViewById(R.id.etLogin)
         etPassword = findViewById(R.id.etPassword)
@@ -48,37 +58,70 @@ class MainActivity : AppCompatActivity() {
             tvStatus.text = "Configurações salvas com sucesso!"
         }
 
-        // Solicita permissões BÁSICAS de SMS
+        val etPassword = findViewById<EditText>(R.id.etPassword)
+        val btnShowPassword = findViewById<ImageButton>(R.id.btnShowPassword)
+        var isPasswordVisible = false
+        btnShowPassword.setOnClickListener {
+            isPasswordVisible = !isPasswordVisible
+            if (isPasswordVisible) {
+                etPassword.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                btnShowPassword.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+            } else {
+                etPassword.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                btnShowPassword.setImageResource(android.R.drawable.ic_menu_view)
+            }
+            etPassword.setSelection(etPassword.text.length) // mantém cursor ao final
+        }
+
+
         checkAndRequestSmsPermissions()
-        // Solicita permissão de NOTIFICAÇÃO
         checkAndRequestNotificationPermission()
-        // Solicita para ser o app padrão de SMS
         requestDefaultSmsApp()
-        updateSmsInfoMessage() // <--- Importante!
+        updateSmsInfoMessage()
     }
 
     override fun onResume() {
         super.onResume()
         updateSmsInfoMessage()
+        handler.post(historyRunnable)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(historyRunnable)
+    }
+
+    private fun showHistory() {
+        val historyBox = findViewById<LinearLayout>(R.id.historyBox)
+        historyBox.removeAllViews()
+        val historyList = prefs.getSmsHistory()
+        if (historyList.isEmpty()) {
+            historyBox.addView(TextView(this).apply { text = "Nenhum código recebido ainda." })
+        } else {
+            for (item in historyList) {
+                historyBox.addView(TextView(this).apply {
+                    text = item
+                    textSize = 16f
+                    setPadding(6, 4, 6, 4)
+                    setTextColor(android.graphics.Color.parseColor("#37474F"))
+                })
+            }
+        }
     }
 
     // Exibe o alerta fixo para o usuário
     private fun updateSmsInfoMessage() {
-        if (isDefaultSmsApp() && hasAllSmsPermissions()) {
-            tvSmsInfo.text = "Este app está pronto para capturar automaticamente qualquer SMS recebido e encaminhá-lo ao endpoint configurado."
+        tvSmsInfo.text = if (isDefaultSmsApp() && hasAllSmsPermissions()) {
+            "Este app está pronto para capturar automaticamente qualquer SMS recebido e encaminhá-lo ao endpoint configurado."
         } else {
-            tvSmsInfo.text = "Para funcionar corretamente, defina este app como aplicativo padrão de SMS e conceda as permissões solicitadas."
+            "Para funcionar corretamente, defina este app como aplicativo padrão de SMS e conceda as permissões solicitadas."
         }
     }
 
-    private fun isDefaultSmsApp(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            val defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(this)
-            packageName == defaultSmsPackage
-        } else {
-            true // Em Android <4.4 não existe app padrão de SMS
-        }
-    }
+    private fun isDefaultSmsApp(): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            Telephony.Sms.getDefaultSmsPackage(this) == packageName
+        } else true
 
     private fun hasAllSmsPermissions(): Boolean {
         val permissions = arrayOf(
@@ -86,12 +129,9 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.READ_SMS,
             Manifest.permission.SEND_SMS
         )
-        return permissions.all {
-            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
-        }
+        return permissions.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
     }
 
-    // Permissões SMS:
     private fun checkAndRequestSmsPermissions() {
         val permissions = arrayOf(
             Manifest.permission.RECEIVE_SMS,
@@ -110,42 +150,26 @@ class MainActivity : AppCompatActivity() {
 
     private val requestPermissionsLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-            val granted = result.all { it.value }
-            if (granted) {
-                tvStatus.text = "Permissões de SMS concedidas."
+            tvStatus.text = if (result.all { it.value }) {
+                "Permissões de SMS concedidas."
             } else {
-                tvStatus.text = "Permissões de SMS negadas."
+                "Permissões de SMS negadas."
             }
         }
 
-    // Permissão de notificação:
     private fun checkAndRequestNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 230)
-            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 230)
         }
     }
 
-    // Solicita ser app padrão de SMS:
     private fun requestDefaultSmsApp() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val roleManager = getSystemService(Context.ROLE_SERVICE) as RoleManager
-            if (!roleManager.isRoleHeld(RoleManager.ROLE_SMS)) {
-                val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS)
-                startActivityForResult(intent, 1001)
-            }
-        } else {
-            val defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(this)
-            if (defaultSmsPackage != packageName) {
-                val intent = Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT)
-                intent.putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, packageName)
-                startActivity(intent)
-            }
+        val roleManager = getSystemService(Context.ROLE_SERVICE) as RoleManager
+        if (!roleManager.isRoleHeld(RoleManager.ROLE_SMS)) {
+            val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS)
+            startActivityForResult(intent, 1001)
         }
     }
 }

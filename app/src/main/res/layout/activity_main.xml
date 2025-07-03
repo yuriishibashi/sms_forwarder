@@ -1,70 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center_horizontal">
+    android:background="@android:color/white">
 
-    <TextView
-        android:id="@+id/tvTitle"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="SMS Redirection"
-        android:textAlignment="center"
-        android:textStyle="bold"
-        android:textSize="22sp"
-        android:paddingBottom="10dp"
-        android:textColor="@android:color/black"/>
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center_horizontal">
 
-    <TextView
-        android:id="@+id/tvSmsInfo"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="O app captura todo SMS recebido (apenas se definido como aplicativo SMS padrão) e envia automaticamente ao endpoint informado."
-        android:textColor="#1565C0"
-        android:textSize="15sp"
-        android:padding="8dp"
-        android:textStyle="italic"
-        android:background="#EEF4FB"/>
+        <!-- Título -->
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="SMS Redirection"
+            android:textAlignment="center"
+            android:textStyle="bold"
+            android:textSize="22sp"
+            android:paddingBottom="8dp"
+            android:textColor="@android:color/black"/>
 
-    <EditText
-        android:id="@+id/etEndpointUrl"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="URL do endpoint"
-        android:inputType="textUri"
-        android:layout_marginTop="16dp"/>
+        <!-- Versão e data -->
+        <TextView
+            android:id="@+id/tvVersion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Versão 1.1 - 03/Julho"
+            android:textAlignment="center"
+            android:textSize="13sp"
+            android:textStyle="italic"
+            android:textColor="#666666"
+            android:paddingBottom="12dp"/>
 
-    <EditText
-        android:id="@+id/etLogin"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Usuário"
-        android:inputType="textEmailAddress"
-        android:layout_marginTop="12dp"/>
+        <!-- Informativo -->
+        <TextView
+            android:id="@+id/tvSmsInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="O app captura todo SMS recebido (apenas se definido como aplicativo SMS padrão) e envia automaticamente ao endpoint informado."
+            android:textColor="#1565C0"
+            android:textSize="15sp"
+            android:padding="10dp"
+            android:textStyle="italic"
+            android:background="#f0f5fc"
+            android:layout_marginBottom="10dp"
+            android:layout_marginTop="2dp"/>
 
-    <EditText
-        android:id="@+id/etPassword"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Senha"
-        android:inputType="text"
-        android:layout_marginTop="12dp"/>
+        <!-- Campos de configuração -->
+        <EditText
+            android:id="@+id/etEndpointUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="URL do endpoint"
+            android:inputType="textUri"
+            android:layout_marginTop="4dp"
+            android:drawableStart="@android:drawable/ic_menu_send" />
 
-    <Button
-        android:id="@+id/btnSave"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Salvar configurações"
-        android:layout_marginTop="20dp"/>
+        <EditText
+            android:id="@+id/etLogin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Usuário"
+            android:inputType="textEmailAddress"
+            android:layout_marginTop="10dp"
+            android:drawableStart="@android:drawable/ic_menu_myplaces" />
 
-    <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Status: aguardando ação"
-        android:paddingTop="22dp"
-        android:textAlignment="center"/>
-</LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical">
+
+            <EditText
+                android:id="@+id/etPassword"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:hint="Senha"
+                android:inputType="textPassword"
+                android:drawableStart="@android:drawable/ic_lock_lock"
+                android:importantForAccessibility="yes"/>
+
+            <ImageButton
+                android:id="@+id/btnShowPassword"
+                android:layout_width="44dp"
+                android:layout_height="wrap_content"
+                android:src="@android:drawable/ic_menu_view"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Exibir/ocultar senha"
+                android:focusable="false"
+                android:padding="7dp" />
+        </LinearLayout>
+
+        <!-- Botão salvar -->
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Salvar configurações"
+            android:layout_marginTop="18dp"/>
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Status: aguardando ação"
+            android:textColor="#222"
+            android:textAlignment="center"
+            android:paddingTop="18dp"/>
+
+        <!-- Histórico -->
+        <TextView
+            android:id="@+id/tvHistoryLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Últimos códigos recebidos:"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:paddingTop="18dp"
+            android:paddingBottom="2dp"
+            android:textColor="#333333"/>
+
+        <LinearLayout
+            android:id="@+id/historyBox"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#FAFAFA"
+            android:padding="10dp"
+            android:layout_marginBottom="16dp"
+            android:layout_marginTop="3dp"
+            android:elevation="1dp"/>
+    </LinearLayout>
+</ScrollView>

@@ -1,17 +1,28 @@
 package com.seudominio.smsforwarder.network
 
 import android.os.Build
-import androidx.annotation.OptIn
-import android.util.Log
-import androidx.media3.common.util.UnstableApi
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import android.util.Log
 
 object SmsSender {
-    @OptIn(UnstableApi::class)
+
+    // OkHttpClient recomendado como singleton (evita overhead de criação múltipla)
+    private val client by lazy { OkHttpClient() }
+
+    /**
+     * Envia dados do SMS para o endpoint especificado.
+     *
+     * @param url       Endpoint destino (POST)
+     * @param login     Usuário para autenticação
+     * @param password  Senha para autenticação
+     * @param sender    Número/Rementente do SMS
+     * @param body      Corpo da mensagem
+     * @param timestamp Timestamp do recebimento
+     */
     fun sendSmsToEndpoint(
         url: String,
         login: String,
@@ -21,15 +32,13 @@ object SmsSender {
         timestamp: Long
     ) {
         try {
-            Log.d("SmsSender_LOG", "Chamou sendSmsToEndpoint!")
-            val client = OkHttpClient()
             val json = JSONObject().apply {
                 put("usuario", login)
                 put("senha", password)
                 put("remetente", sender)
                 put("mensagem", body)
                 put("timestamp", timestamp)
-                put("device_id", Build.MODEL ?: "android") // Identificação simples do aparelho
+                put("device_id", Build.MODEL ?: "android")
             }
 
             val requestBody = json.toString()
@@ -39,12 +48,14 @@ object SmsSender {
                 .url(url)
                 .post(requestBody)
                 .build()
-            val response = client.newCall(request).execute()
-            Log.d("SmsSender_LOG", "POST status: ${response.code}, resposta: ${response.body?.string()}")
-            response.close()
-        } catch (e: Exception) {
-            Log.e("SmsSender_LOG", "Erro ao enviar SMS para endpoint", e)
-        }
 
+            client.newCall(request).execute().use { response ->
+                // Pode tratar resposta ou erros específicos aqui se necessário
+                // Para produção: usar log apenas em erros, se for imprescindível.
+                // Não abrir response.body como string somente para log, pode ser stream único.
+            }
+        } catch (e: Exception) {
+             Log.e("SmsSender", "Erro ao enviar SMS para endpoint", e)
+        }
     }
 }

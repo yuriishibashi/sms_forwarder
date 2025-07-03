@@ -5,9 +5,11 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
 class PreferencesHelper(context: Context) {
+
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
+
     private val prefs = EncryptedSharedPreferences.create(
         context,
         "sms_forwarder_prefs",
@@ -16,12 +18,32 @@ class PreferencesHelper(context: Context) {
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
 
-    fun getEndpointUrl(): String = prefs.getString("endpoint_url", "") ?: ""
-    fun setEndpointUrl(url: String) = prefs.edit().putString("endpoint_url", url).apply()
+    // --- API para dados do endpoint ---
+    fun getEndpointUrl(): String =
+        prefs.getString("endpoint_url", "").orEmpty()
 
-    fun getEndpointLogin(): String = prefs.getString("endpoint_login", "") ?: ""
-    fun setEndpointLogin(login: String) = prefs.edit().putString("endpoint_login", login).apply()
+    fun setEndpointUrl(url: String): PreferencesHelper =
+        apply { prefs.edit().putString("endpoint_url", url).apply() }
 
-    fun getEndpointPassword(): String = prefs.getString("endpoint_password", "") ?: ""
-    fun setEndpointPassword(password: String) = prefs.edit().putString("endpoint_password", password).apply()
+    fun getEndpointLogin(): String =
+        prefs.getString("endpoint_login", "").orEmpty()
+
+    fun setEndpointLogin(login: String): PreferencesHelper =
+        apply { prefs.edit().putString("endpoint_login", login).apply() }
+
+    fun getEndpointPassword(): String =
+        prefs.getString("endpoint_password", "").orEmpty()
+
+    fun setEndpointPassword(password: String): PreferencesHelper =
+        apply { prefs.edit().putString("endpoint_password", password).apply() }
+
+    // --- API para histórico de SMS ---
+    fun getSmsHistory(): List<String> =
+        prefs.getString("sms_history", "")
+            ?.takeIf { it.isNotBlank() }
+            ?.split("|")
+            ?: emptyList()
+
+    fun saveSmsHistory(list: List<String>): PreferencesHelper =
+        apply { prefs.edit().putString("sms_history", list.joinToString("|")).apply() }
 }
