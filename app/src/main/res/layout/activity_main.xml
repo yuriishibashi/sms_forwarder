@@ -114,7 +114,7 @@
             android:textAlignment="center"
             android:paddingTop="18dp"/>
 
-        <!-- Histórico -->
+        <!-- Histórico de SMS Recebidos -->
         <TextView
             android:id="@+id/tvHistoryLabel"
             android:layout_width="match_parent"
@@ -136,5 +136,47 @@
             android:layout_marginBottom="16dp"
             android:layout_marginTop="3dp"
             android:elevation="1dp"/>
+
+        <!-- NOVO: Botão para simular envio de SMS -->
+        <Button
+            android:id="@+id/btnSendTestSms"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Enviar SMS de Teste para Endpoint"
+            android:layout_marginTop="18dp"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- NOVO: Seção de Histórico de SMS Enviados -->
+        <TextView
+            android:id="@+id/tvSentHistoryLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Histórico de SMS Enviados:"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:paddingTop="8dp"
+            android:paddingBottom="2dp"
+            android:textColor="#333333"/>
+
+        <TextView
+            android:id="@+id/tvSentStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Status do último envio: "
+            android:textColor="#222"
+            android:textAlignment="center"
+            android:paddingBottom="8dp"/>
+
+        <LinearLayout
+            android:id="@+id/sentHistoryBox"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#FAFAFA"
+            android:padding="10dp"
+            android:layout_marginBottom="16dp"
+            android:layout_marginTop="3dp"
+            android:elevation="1dp"/>
+
     </LinearLayout>
 </ScrollView>

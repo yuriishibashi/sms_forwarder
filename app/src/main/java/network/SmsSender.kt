@@ -1,28 +1,17 @@
 package com.seudominio.smsforwarder.network
 
 import android.os.Build
+import android.util.Log
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import android.util.Log
 
 object SmsSender {
 
-    // OkHttpClient recomendado como singleton (evita overhead de criação múltipla)
     private val client by lazy { OkHttpClient() }
 
-    /**
-     * Envia dados do SMS para o endpoint especificado.
-     *
-     * @param url       Endpoint destino (POST)
-     * @param login     Usuário para autenticação
-     * @param password  Senha para autenticação
-     * @param sender    Número/Rementente do SMS
-     * @param body      Corpo da mensagem
-     * @param timestamp Timestamp do recebimento
-     */
     fun sendSmsToEndpoint(
         url: String,
         login: String,
@@ -30,8 +19,8 @@ object SmsSender {
         sender: String,
         body: String,
         timestamp: Long
-    ) {
-        try {
+    ): Boolean {
+        return try {
             val json = JSONObject().apply {
                 put("usuario", login)
                 put("senha", password)
@@ -49,13 +38,27 @@ object SmsSender {
                 .post(requestBody)
                 .build()
 
+            Log.d("SmsSender", "⏳ Enviando SMS para endpoint: $url")
+            Log.d("SmsSender", "Payload JSON: $json")
+
             client.newCall(request).execute().use { response ->
-                // Pode tratar resposta ou erros específicos aqui se necessário
-                // Para produção: usar log apenas em erros, se for imprescindível.
-                // Não abrir response.body como string somente para log, pode ser stream único.
+                val isSuccessful = response.isSuccessful
+                val statusCode = response.code
+                val responseText = response.body?.string()
+
+                if (isSuccessful) {
+                    Log.i("SmsSender", "✅ Sucesso: Status $statusCode")
+                    Log.i("SmsSender", "Resposta do servidor: $responseText")
+                } else {
+                    Log.e("SmsSender", "❌ Falha: Status $statusCode")
+                    Log.e("SmsSender", "Erro retornado: $responseText")
+                }
+
+                return isSuccessful
             }
         } catch (e: Exception) {
-             Log.e("SmsSender", "Erro ao enviar SMS para endpoint", e)
+            Log.e("SmsSender", "❌ Erro ao enviar SMS para endpoint", e)
+            return false
         }
     }
 }

@@ -1,49 +1,50 @@
-package com.seudominio.smsforwarder.util
+    package com.seudominio.smsforwarder.util
 
-import android.content.Context
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+    import android.content.Context
+    import android.content.SharedPreferences
 
-class PreferencesHelper(context: Context) {
+    class PreferencesHelper(context: Context) {
 
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
+        private val PREFS_NAME = "SmsForwarderPrefs"
+        private val ENDPOINT_URL_KEY = "endpoint_url"
+        private val ENDPOINT_LOGIN_KEY = "endpoint_login"
+        private val ENDPOINT_PASSWORD_KEY = "endpoint_password"
+        private val SMS_HISTORY_KEY = "sms_history" // Para SMS recebidos
+        private val SENT_SMS_HISTORY_KEY = "sent_sms_history" // NOVO: Para SMS enviados
 
-    private val prefs = EncryptedSharedPreferences.create(
-        context,
-        "sms_forwarder_prefs",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+        private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    // --- API para dados do endpoint ---
-    fun getEndpointUrl(): String =
-        prefs.getString("endpoint_url", "").orEmpty()
+        fun getEndpointUrl(): String = prefs.getString(ENDPOINT_URL_KEY, "") ?: ""
+        fun setEndpointUrl(url: String) = prefs.edit().putString(ENDPOINT_URL_KEY, url).apply()
 
-    fun setEndpointUrl(url: String): PreferencesHelper =
-        apply { prefs.edit().putString("endpoint_url", url).apply() }
+        fun getEndpointLogin(): String = prefs.getString(ENDPOINT_LOGIN_KEY, "") ?: ""
+        fun setEndpointLogin(login: String) = prefs.edit().putString(ENDPOINT_LOGIN_KEY, login).apply()
 
-    fun getEndpointLogin(): String =
-        prefs.getString("endpoint_login", "").orEmpty()
+        fun getEndpointPassword(): String = prefs.getString(ENDPOINT_PASSWORD_KEY, "") ?: ""
+        fun setEndpointPassword(password: String) = prefs.edit().putString(ENDPOINT_PASSWORD_KEY, password).apply()
 
-    fun setEndpointLogin(login: String): PreferencesHelper =
-        apply { prefs.edit().putString("endpoint_login", login).apply() }
+        // Método para adicionar SMS recebido (adaptado para usar List<String> diretamente)
+        fun addSmsHistory(historyList: List<String>) {
+            // Converte para Set para remover duplicatas e depois para List para salvar como StringSet
+            val historySet = historyList.toSet()
+            prefs.edit().putStringSet(SMS_HISTORY_KEY, historySet).apply()
+        }
 
-    fun getEndpointPassword(): String =
-        prefs.getString("endpoint_password", "").orEmpty()
+        fun getSmsHistory(): List<String> =
+            prefs.getStringSet(SMS_HISTORY_KEY, emptySet())?.toList()?.sortedDescending() ?: emptyList() // Opcional: ordenar para manter ordem
 
-    fun setEndpointPassword(password: String): PreferencesHelper =
-        apply { prefs.edit().putString("endpoint_password", password).apply() }
+        // NOVO: Métodos para histórico de SMS enviados
+        fun addSentSmsLog(logEntry: String) {
+            val currentSentHistory = getSentSmsHistory().toMutableList()
+            currentSentHistory.add(0, logEntry) // Adiciona no início
+            if (currentSentHistory.size > 15) { // Limita a 15 entradas
+                currentSentHistory.removeAt(currentSentHistory.size - 1)
+            }
+            val historySet = currentSentHistory.toSet()
+            prefs.edit().putStringSet(SENT_SMS_HISTORY_KEY, historySet).apply()
+        }
 
-    // --- API para histórico de SMS ---
-    fun getSmsHistory(): List<String> =
-        prefs.getString("sms_history", "")
-            ?.takeIf { it.isNotBlank() }
-            ?.split("|")
-            ?: emptyList()
-
-    fun saveSmsHistory(list: List<String>): PreferencesHelper =
-        apply { prefs.edit().putString("sms_history", list.joinToString("|")).apply() }
-}
+        fun getSentSmsHistory(): List<String> =
+            prefs.getStringSet(SENT_SMS_HISTORY_KEY, emptySet())?.toList()?.sortedDescending() ?: emptyList() // Opcional: ordenar
+    }
+    
