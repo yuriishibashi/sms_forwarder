@@ -62,12 +62,12 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
             }
 
             if (matchedLabel != null && matchedValue != null) {
-                val sdf = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+                val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
                 val dataHora = sdf.format(Date(timestamp))
                 val entry = "$dataHora - $matchedLabel: $matchedValue"
                 val oldList = prefs.getSmsHistory().toMutableList()
                 oldList.add(0, entry)
-                prefs.saveSmsHistory(oldList.take(10))
+                prefs.saveSmsHistory(oldList.take(7))
                 context.sendBroadcast(Intent("com.example.smsforwarder.UPDATE_HISTORY"))
 
                 if (url.isNotEmpty()) {
