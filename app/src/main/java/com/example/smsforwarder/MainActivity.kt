@@ -6,16 +6,21 @@ import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Telephony
+import android.webkit.URLUtil.isValidUrl
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.seudominio.smsforwarder.util.PreferencesHelper
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.net.URL
 
 class MainActivity : AppCompatActivity() {
 
@@ -23,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etLogin: EditText
     private lateinit var etPassword: EditText
     private lateinit var btnSave: Button
+    private lateinit var btnTestEndpoint: Button
     private lateinit var tvStatus: TextView
     private lateinit var tvSmsInfo: TextView
     private lateinit var prefs: PreferencesHelper
@@ -44,6 +50,7 @@ class MainActivity : AppCompatActivity() {
         etLogin = findViewById(R.id.etLogin)
         etPassword = findViewById(R.id.etPassword)
         btnSave = findViewById(R.id.btnSave)
+        btnTestEndpoint = findViewById(R.id.btnTestEndpoint)
         tvStatus = findViewById(R.id.tvStatus)
         tvSmsInfo = findViewById(R.id.tvSmsInfo)
 
@@ -52,10 +59,22 @@ class MainActivity : AppCompatActivity() {
         etPassword.setText(prefs.getEndpointPassword())
 
         btnSave.setOnClickListener {
-            prefs.setEndpointUrl(etEndpointUrl.text.toString())
-            prefs.setEndpointLogin(etLogin.text.toString())
-            prefs.setEndpointPassword(etPassword.text.toString())
-            tvStatus.text = "Configurações salvas com sucesso!"
+            val url = etEndpointUrl.text.toString()
+            if (!isValidUrl(url)) {
+                tvStatus.text = "URL inválida! Use formato: https://exemplo.com"
+                tvStatus.setTextColor(Color.RED)
+                return@setOnClickListener
+            }
+            prefs.setEndpointUrl(url)
+                .setEndpointLogin(etLogin.text.toString())
+                .setEndpointPassword(etPassword.text.toString())
+
+            tvStatus.text = "✅ Configurações salvas!"
+            tvStatus.setTextColor(Color.parseColor("#4CAF50"))
+        }
+
+        btnTestEndpoint.setOnClickListener {
+            testEndpoint()
         }
 
         val etPassword = findViewById<EditText>(R.id.etPassword)
@@ -89,6 +108,166 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         handler.removeCallbacks(historyRunnable)
+    }
+
+    private fun isValidUrl(url: String): Boolean {
+        return try {
+            URL(url)
+            url.startsWith("http://") || url.startsWith("https://")
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun testEndpoint() {
+        val url = etEndpointUrl.text.toString().trim()
+        val login = etLogin.text.toString().trim()
+        val password = etPassword.text.toString().trim()
+
+        if (url.isEmpty()) {
+            tvStatus.text = "❌ Informe a URL do endpoint primeiro"
+            tvStatus.setTextColor(android.graphics.Color.RED)
+            return
+        }
+
+        if (!isValidUrl(url)) {
+            tvStatus.text = "❌ URL inválida! Use formato: https://exemplo.com"
+            tvStatus.setTextColor(android.graphics.Color.RED)
+            return
+        }
+
+        // Desabilita o botão durante o teste
+        btnTestEndpoint.isEnabled = false
+        btnTestEndpoint.text = "🔄 Testando..."
+        tvStatus.text = "🔄 Testando conectividade..."
+        tvStatus.setTextColor(android.graphics.Color.parseColor("#FF9800"))
+
+        Thread {
+            try {
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                    .writeTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
+
+                // Primeiro testa conectividade básica
+                val headRequest = okhttp3.Request.Builder()
+                    .url(url)
+                    .head()
+                    .build()
+
+                client.newCall(headRequest).execute().use { response ->
+                    runOnUiThread {
+                        if (response.isSuccessful) {
+                            // Se conectividade OK, testa o endpoint completo
+                            testFullEndpoint(client, url, login, password)
+                        } else {
+                            showTestResult(
+                                "⚠️ Endpoint respondeu com código: ${response.code}",
+                                android.graphics.Color.parseColor("#FF9800")
+                            )
+                        }
+                    }
+                }
+            } catch (e: java.net.UnknownHostException) {
+                runOnUiThread {
+                    showTestResult(
+                        "❌ Erro: Host não encontrado. Verifique a URL.",
+                        android.graphics.Color.RED
+                    )
+                }
+            } catch (e: java.net.SocketTimeoutException) {
+                runOnUiThread {
+                    showTestResult(
+                        "❌ Timeout: Servidor não respondeu em 10s",
+                        android.graphics.Color.RED
+                    )
+                }
+            } catch (e: javax.net.ssl.SSLException) {
+                runOnUiThread {
+                    showTestResult(
+                        "❌ Erro SSL: Certificado inválido",
+                        android.graphics.Color.RED
+                    )
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    showTestResult(
+                        "❌ Erro de conexão: ${e.message}",
+                        android.graphics.Color.RED
+                    )
+                }
+            }
+        }.start()
+    }
+
+    // NOVO: Teste completo do endpoint com dados simulados
+    private fun testFullEndpoint(client: okhttp3.OkHttpClient, url: String, login: String, password: String) {
+        Thread {
+            try {
+                val json = org.json.JSONObject().apply {
+                    put("usuario", login.ifEmpty { "teste" })
+                    put("senha", password.ifEmpty { "teste" })
+                    put("remetente", "TESTE")
+                    put("mensagem", "Teste de conectividade do app SMS Redirection")
+                    put("timestamp", System.currentTimeMillis())
+                    put("device_id", android.os.Build.MODEL ?: "android")
+                    put("teste", true) // Indica que é um teste
+                }
+
+                val requestBody = json.toString()
+                    .toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+
+                val request = okhttp3.Request.Builder()
+                    .url(url)
+                    .post(requestBody)
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    runOnUiThread {
+                        when (response.code) {
+                            200, 201 -> showTestResult(
+                                "✅ Endpoint funcionando perfeitamente!",
+                                android.graphics.Color.parseColor("#4CAF50")
+                            )
+                            401, 403 -> showTestResult(
+                                "⚠️ Endpoint OK, mas credenciais inválidas",
+                                android.graphics.Color.parseColor("#FF9800")
+                            )
+                            404 -> showTestResult(
+                                "❌ Endpoint não encontrado (404)",
+                                android.graphics.Color.RED
+                            )
+                            500 -> showTestResult(
+                                "⚠️ Erro interno do servidor (500)",
+                                android.graphics.Color.parseColor("#FF9800")
+                            )
+                            else -> showTestResult(
+                                "⚠️ Resposta inesperada: ${response.code}",
+                                android.graphics.Color.parseColor("#FF9800")
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    showTestResult(
+                        "❌ Erro ao testar endpoint: ${e.message}",
+                        android.graphics.Color.RED
+                    )
+                }
+            }
+        }.start()
+    }
+
+    // NOVO: Exibe resultado do teste
+    private fun showTestResult(message: String, color: Int) {
+        tvStatus.text = message
+        tvStatus.setTextColor(color)
+
+        // Reabilita o botão
+        btnTestEndpoint.isEnabled = true
+        btnTestEndpoint.text = "🔗 Testar Endpoint"
     }
 
     private fun showHistory() {

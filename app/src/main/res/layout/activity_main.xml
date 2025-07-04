@@ -105,6 +105,15 @@
             android:text="Salvar configurações"
             android:layout_marginTop="18dp"/>
 
+        <Button
+            android:id="@+id/btnTestEndpoint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🔗 Testar Endpoint"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="#2196F3"
+            android:textColor="@android:color/white"/>
+
         <TextView
             android:id="@+id/tvStatus"
             android:layout_width="match_parent"

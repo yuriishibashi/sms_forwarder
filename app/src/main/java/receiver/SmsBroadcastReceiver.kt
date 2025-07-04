@@ -31,9 +31,11 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != "android.provider.Telephony.SMS_RECEIVED") return
+
         val bundle = intent.extras ?: return
         val pdus = bundle["pdus"] as? Array<*> ?: return
         val prefs = PreferencesHelper(context.applicationContext)
+
         val url = prefs.getEndpointUrl()
         val login = prefs.getEndpointLogin()
         val password = prefs.getEndpointPassword()
@@ -63,11 +65,14 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
 
             if (matchedLabel != null && matchedValue != null) {
                 val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+                sdf.timeZone = TimeZone.getTimeZone("America/Sao_Paulo")
                 val dataHora = sdf.format(Date(timestamp))
                 val entry = "$dataHora - $matchedLabel: $matchedValue"
+
                 val oldList = prefs.getSmsHistory().toMutableList()
                 oldList.add(0, entry)
                 prefs.saveSmsHistory(oldList.take(7))
+
                 context.sendBroadcast(Intent("com.example.smsforwarder.UPDATE_HISTORY"))
 
                 if (url.isNotEmpty()) {

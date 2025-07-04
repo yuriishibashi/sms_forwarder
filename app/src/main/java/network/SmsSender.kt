@@ -13,16 +13,6 @@ object SmsSender {
     // OkHttpClient recomendado como singleton (evita overhead de criação múltipla)
     private val client by lazy { OkHttpClient() }
 
-    /**
-     * Envia dados do SMS para o endpoint especificado.
-     *
-     * @param url       Endpoint destino (POST)
-     * @param login     Usuário para autenticação
-     * @param password  Senha para autenticação
-     * @param sender    Número/Rementente do SMS
-     * @param body      Corpo da mensagem
-     * @param timestamp Timestamp do recebimento
-     */
     fun sendSmsToEndpoint(
         url: String,
         login: String,
