@@ -14,6 +14,12 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+
+    <!-- Evita otimização de bateria -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Acesso broadcast de SMS, apenas se necessário (normalmente protegido pelo sistema) -->
     <uses-permission android:name="android.permission.BROADCAST_SMS" tools:ignore="ProtectedPermissions"/>
     <uses-permission android:name="android.permission.BROADCAST_WAP_PUSH" tools:ignore="ProtectedPermissions"/>
@@ -40,8 +46,9 @@
         <receiver
             android:name=".receiver.SmsBroadcastReceiver"
             android:permission="android.permission.BROADCAST_SMS"
-            android:exported="true">
-            <intent-filter>
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter android:priority="1000">
                 <action android:name="android.provider.Telephony.SMS_RECEIVED"/>
                 <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
