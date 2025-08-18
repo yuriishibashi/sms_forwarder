@@ -77,8 +77,17 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
 
                 if (url.isNotEmpty()) {
                     Thread {
+                        val chipNumber = prefs.getEndpointPhone()
+                        val smsOrigin = message.displayOriginatingAddress // número real de quem enviou
+
                         SmsSender.sendSmsToEndpoint(
-                            url, login, password, sender, body, timestamp
+                            url,
+                            login,
+                            password,
+                            chipNumber.ifEmpty { "unknown" }, // remetente = chip
+                            smsOrigin,                        // origem = quem mandou
+                            body,
+                            timestamp
                         )
                     }.start()
                 }

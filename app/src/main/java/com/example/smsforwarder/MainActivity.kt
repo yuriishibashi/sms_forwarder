@@ -1,10 +1,8 @@
 package com.example.smsforwarder
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.role.RoleManager
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
@@ -12,7 +10,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Telephony
-import android.webkit.URLUtil.isValidUrl
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -27,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etEndpointUrl: EditText
     private lateinit var etLogin: EditText
     private lateinit var etPassword: EditText
+    private lateinit var etPhone: EditText
     private lateinit var btnSave: Button
     private lateinit var btnTestEndpoint: Button
     private lateinit var tvStatus: TextView
@@ -49,6 +47,8 @@ class MainActivity : AppCompatActivity() {
         etEndpointUrl = findViewById(R.id.etEndpointUrl)
         etLogin = findViewById(R.id.etLogin)
         etPassword = findViewById(R.id.etPassword)
+        etPhone = findViewById(R.id.etPhone)
+        etPhone.setText(prefs.getEndpointPhone())
         btnSave = findViewById(R.id.btnSave)
         btnTestEndpoint = findViewById(R.id.btnTestEndpoint)
         tvStatus = findViewById(R.id.tvStatus)
@@ -68,6 +68,7 @@ class MainActivity : AppCompatActivity() {
             prefs.setEndpointUrl(url)
                 .setEndpointLogin(etLogin.text.toString())
                 .setEndpointPassword(etPassword.text.toString())
+                .setEndpointPhone(etPhone.text.toString())
 
             tvStatus.text = "✅ Configurações salvas!"
             tvStatus.setTextColor(Color.parseColor("#4CAF50"))

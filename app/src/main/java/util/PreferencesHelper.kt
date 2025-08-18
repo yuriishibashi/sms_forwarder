@@ -46,4 +46,11 @@ class PreferencesHelper(context: Context) {
 
     fun saveSmsHistory(list: List<String>): PreferencesHelper =
         apply { prefs.edit().putString("sms_history", list.joinToString("|")).apply() }
+
+    fun getEndpointPhone(): String =
+        prefs.getString("endpoint_phone", "").orEmpty()
+
+    fun setEndpointPhone(phone: String): PreferencesHelper =
+        apply { prefs.edit().putString("endpoint_phone", phone).apply() }
+
 }
