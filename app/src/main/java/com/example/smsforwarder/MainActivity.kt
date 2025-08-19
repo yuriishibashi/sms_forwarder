@@ -125,23 +125,21 @@ class MainActivity : AppCompatActivity() {
         val login = etLogin.text.toString().trim()
         val password = etPassword.text.toString().trim()
 
-        if (url.isEmpty()) {
-            tvStatus.text = "❌ Informe a URL do endpoint primeiro"
-            tvStatus.setTextColor(android.graphics.Color.RED)
-            return
+        when {
+            url.isEmpty() -> {
+                showTestResult("❌ Informe a URL do endpoint primeiro", android.graphics.Color.RED)
+                return
+            }
+            !isValidUrl(url) -> {
+                showTestResult("❌ URL inválida! Use formato: https://exemplo.com", android.graphics.Color.RED)
+                return
+            }
         }
 
-        if (!isValidUrl(url)) {
-            tvStatus.text = "❌ URL inválida! Use formato: https://exemplo.com"
-            tvStatus.setTextColor(android.graphics.Color.RED)
-            return
-        }
-
-        // Desabilita o botão durante o teste
+        // Atualiza UI antes do teste
         btnTestEndpoint.isEnabled = false
         btnTestEndpoint.text = "🔄 Testando..."
-        tvStatus.text = "🔄 Testando conectividade..."
-        tvStatus.setTextColor(android.graphics.Color.parseColor("#FF9800"))
+        showTestResult("🔄 Testando conectividade...", android.graphics.Color.parseColor("#FF9800"))
 
         Thread {
             try {
@@ -151,56 +149,57 @@ class MainActivity : AppCompatActivity() {
                     .writeTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
                     .build()
 
-                // Primeiro testa conectividade básica
-                val headRequest = okhttp3.Request.Builder()
+                val getRequest = okhttp3.Request.Builder()
                     .url(url)
-                    .head()
+                    .get()
                     .build()
 
-                client.newCall(headRequest).execute().use { response ->
+                client.newCall(getRequest).execute().use { response ->
                     runOnUiThread {
-                        if (response.isSuccessful) {
-                            // Se conectividade OK, testa o endpoint completo
-                            testFullEndpoint(client, url, login, password)
-                        } else {
-                            showTestResult(
-                                "⚠️ Endpoint respondeu com código: ${response.code}",
-                                android.graphics.Color.parseColor("#FF9800")
-                            )
+                        when {
+                            response.isSuccessful -> {
+                                // Se conectividade OK → testa o endpoint com lógica completa
+                                testFullEndpoint(client, url, login, password)
+                            }
+                            response.code in 300..399 -> {
+                                showTestResult("⚠️ Redirecionamento detectado (${response.code})",
+                                    android.graphics.Color.parseColor("#FF9800"))
+                            }
+                            response.code == 405 -> {
+                                showTestResult("⚠️ Método não permitido (405): O endpoint está funcionando, mas não aceita esse tipo de teste.",
+                                    android.graphics.Color.parseColor("#FF9800"))
+                            }
+                            response.code in 400..499 -> {
+                                showTestResult("❌ Erro do cliente: ${response.code}", android.graphics.Color.RED)
+                            }
+                            response.code in 500..599 -> {
+                                showTestResult("❌ Erro do servidor: ${response.code}", android.graphics.Color.RED)
+                            }
+                            else -> {
+                                showTestResult("⚠️ Resposta inesperada (${response.code})", android.graphics.Color.parseColor("#FF9800"))
+                            }
                         }
                     }
                 }
             } catch (e: java.net.UnknownHostException) {
-                runOnUiThread {
-                    showTestResult(
-                        "❌ Erro: Host não encontrado. Verifique a URL.",
-                        android.graphics.Color.RED
-                    )
-                }
+                runOnUiThread { showTestResult("❌ Host não encontrado. Verifique a URL.", android.graphics.Color.RED) }
             } catch (e: java.net.SocketTimeoutException) {
-                runOnUiThread {
-                    showTestResult(
-                        "❌ Timeout: Servidor não respondeu em 10s",
-                        android.graphics.Color.RED
-                    )
-                }
+                runOnUiThread { showTestResult("❌ Timeout: Servidor não respondeu em 10s", android.graphics.Color.RED) }
+            } catch (e: javax.net.ssl.SSLHandshakeException) {
+                runOnUiThread { showTestResult("❌ Falha SSL: Certificado possivelmente inválido", android.graphics.Color.RED) }
             } catch (e: javax.net.ssl.SSLException) {
-                runOnUiThread {
-                    showTestResult(
-                        "❌ Erro SSL: Certificado inválido",
-                        android.graphics.Color.RED
-                    )
-                }
+                runOnUiThread { showTestResult("❌ Erro SSL: ${e.message}", android.graphics.Color.RED) }
             } catch (e: Exception) {
+                runOnUiThread { showTestResult("❌ Erro inesperado: ${e.message}", android.graphics.Color.RED) }
+            } finally {
                 runOnUiThread {
-                    showTestResult(
-                        "❌ Erro de conexão: ${e.message}",
-                        android.graphics.Color.RED
-                    )
+                    btnTestEndpoint.isEnabled = true
+                    btnTestEndpoint.text = "Testar Endpoint"
                 }
             }
         }.start()
     }
+
 
     // NOVO: Teste completo do endpoint com dados simulados
     private fun testFullEndpoint(client: okhttp3.OkHttpClient, url: String, login: String, password: String) {
