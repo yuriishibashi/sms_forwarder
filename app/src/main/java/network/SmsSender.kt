@@ -16,7 +16,8 @@ object SmsSender {
         url: String,
         login: String,
         password: String,
-        sender: String,
+        chipNumber: String, // remetente
+        smsOrigin: String,  // origem
         body: String,
         timestamp: Long
     ): Boolean {
@@ -24,7 +25,8 @@ object SmsSender {
             val json = JSONObject().apply {
                 put("usuario", login)
                 put("senha", password)
-                put("remetente", sender)
+                put("remetente", chipNumber)
+                put("origem", smsOrigin)
                 put("mensagem", body)
                 put("timestamp", timestamp)
                 put("device_id", Build.MODEL ?: "android")

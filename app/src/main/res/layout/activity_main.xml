@@ -97,6 +97,15 @@
                 android:padding="7dp" />
         </LinearLayout>
 
+        <EditText
+            android:id="@+id/etPhone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Número do telefone (+5511966552233)"
+            android:inputType="phone"
+            android:layout_marginTop="8dp"
+            android:drawableStart="@android:drawable/ic_menu_call" />
+
         <!-- Botão salvar -->
         <Button
             android:id="@+id/btnSave"
@@ -112,6 +121,15 @@
             android:text="🔗 Testar Endpoint"
             android:layout_marginTop="8dp"
             android:backgroundTint="#2196F3"
+            android:textColor="@android:color/white"/>
+
+        <Button
+            android:id="@+id/btnClearCache"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🧹 Limpar Cache"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="#FF5722"
             android:textColor="@android:color/white"/>
 
         <TextView
