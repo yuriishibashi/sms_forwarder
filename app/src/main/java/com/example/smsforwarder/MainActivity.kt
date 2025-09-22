@@ -1,6 +1,7 @@
 package com.example.smsforwarder
 
 import android.Manifest
+import android.app.Activity
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.pm.PackageManager
@@ -10,6 +11,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Telephony
+import android.webkit.WebView
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -17,7 +19,12 @@ import androidx.core.content.ContextCompat
 import com.seudominio.smsforwarder.util.PreferencesHelper
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.system.exitProcess
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etPassword: EditText
     private lateinit var etPhone: EditText
     private lateinit var btnSave: Button
+    private lateinit var btnClearCache: Button
     private lateinit var btnTestEndpoint: Button
     private lateinit var tvStatus: TextView
     private lateinit var tvSmsInfo: TextView
@@ -50,6 +58,10 @@ class MainActivity : AppCompatActivity() {
         etPhone = findViewById(R.id.etPhone)
         etPhone.setText(prefs.getEndpointPhone())
         btnSave = findViewById(R.id.btnSave)
+        btnClearCache = findViewById(R.id.btnClearCache)
+        btnClearCache.setOnClickListener {
+            clearAppCache()
+        }
         btnTestEndpoint = findViewById(R.id.btnTestEndpoint)
         tvStatus = findViewById(R.id.tvStatus)
         tvSmsInfo = findViewById(R.id.tvSmsInfo)
@@ -78,6 +90,10 @@ class MainActivity : AppCompatActivity() {
             testEndpoint()
         }
 
+        btnClearCache.setOnClickListener {
+            clearAppCache()
+        }
+
         val etPassword = findViewById<EditText>(R.id.etPassword)
         val btnShowPassword = findViewById<ImageButton>(R.id.btnShowPassword)
         var isPasswordVisible = false
@@ -92,7 +108,6 @@ class MainActivity : AppCompatActivity() {
             }
             etPassword.setSelection(etPassword.text.length) // mantém cursor ao final
         }
-
 
         checkAndRequestSmsPermissions()
         checkAndRequestNotificationPermission()
@@ -120,6 +135,70 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun clearAppCache() {
+        try {
+            val appCacheSize = (cacheDir?.let { getDirSize(it) } ?: 0L) +
+                    (externalCacheDir?.let { getDirSize(it) } ?: 0L)
+
+            val webViewCacheDir = File(cacheDir, "app_webview")
+            val webViewCacheSize = if (webViewCacheDir.exists()) getDirSize(webViewCacheDir) else 0L
+
+            val totalSize = appCacheSize + webViewCacheSize
+
+            cacheDir?.deleteRecursively()
+            externalCacheDir?.deleteRecursively()
+
+            val webView = WebView(applicationContext)
+            webView.clearCache(true)
+            webView.clearHistory()
+
+            val formattedSize = formatSize(totalSize)
+            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+            val time = sdf.format(Date())
+
+            val cacheMessage = "$time - 🧹 Cache limpo! ($formattedSize)"
+
+            val oldList = prefs.getSmsHistory().toMutableList()
+            oldList.add(0, cacheMessage)
+            prefs.saveSmsHistory(oldList.take(7))
+
+            showHistory()
+
+            // Força a parada do app
+            if (this is Activity) {
+                this.finishAffinity()  // Encerra todas as activities e fecha o app
+            } else {
+                //fallback
+                exitProcess(0)
+            }
+
+        } catch (e: Exception) {
+            val errorMessage = "❌ Erro ao limpar cache: ${e.message}"
+            val oldList = prefs.getSmsHistory().toMutableList()
+            oldList.add(0, errorMessage)
+            prefs.saveSmsHistory(oldList.take(7))
+            showHistory()
+        }
+    }
+
+    private fun getDirSize(dir: File): Long {
+        var size: Long = 0
+        dir.listFiles()?.forEach {
+            size += if (it.isDirectory) getDirSize(it) else it.length()
+        }
+        return size
+    }
+
+    private fun formatSize(size: Long): String {
+        val kb = size / 1024.0
+        val mb = kb / 1024.0
+        return when {
+            mb >= 1 -> String.format("%.2f MB", mb)
+            kb >= 1 -> String.format("%.2f KB", kb)
+            else -> "$size B"
+        }
+    }
+
     private fun testEndpoint() {
         val url = etEndpointUrl.text.toString().trim()
         val login = etLogin.text.toString().trim()
@@ -136,7 +215,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Atualiza UI antes do teste
+        // Atualiza UI
         btnTestEndpoint.isEnabled = false
         btnTestEndpoint.text = "🔄 Testando..."
         showTestResult("🔄 Testando conectividade...", android.graphics.Color.parseColor("#FF9800"))
@@ -149,62 +228,7 @@ class MainActivity : AppCompatActivity() {
                     .writeTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
                     .build()
 
-                val getRequest = okhttp3.Request.Builder()
-                    .url(url)
-                    .get()
-                    .build()
-
-                client.newCall(getRequest).execute().use { response ->
-                    runOnUiThread {
-                        when {
-                            response.isSuccessful -> {
-                                // Se conectividade OK → testa o endpoint com lógica completa
-                                testFullEndpoint(client, url, login, password)
-                            }
-                            response.code in 300..399 -> {
-                                showTestResult("⚠️ Redirecionamento detectado (${response.code})",
-                                    android.graphics.Color.parseColor("#FF9800"))
-                            }
-                            response.code == 405 -> {
-                                showTestResult("⚠️ Método não permitido (405): O endpoint está funcionando, mas não aceita esse tipo de teste.",
-                                    android.graphics.Color.parseColor("#FF9800"))
-                            }
-                            response.code in 400..499 -> {
-                                showTestResult("❌ Erro do cliente: ${response.code}", android.graphics.Color.RED)
-                            }
-                            response.code in 500..599 -> {
-                                showTestResult("❌ Erro do servidor: ${response.code}", android.graphics.Color.RED)
-                            }
-                            else -> {
-                                showTestResult("⚠️ Resposta inesperada (${response.code})", android.graphics.Color.parseColor("#FF9800"))
-                            }
-                        }
-                    }
-                }
-            } catch (e: java.net.UnknownHostException) {
-                runOnUiThread { showTestResult("❌ Host não encontrado. Verifique a URL.", android.graphics.Color.RED) }
-            } catch (e: java.net.SocketTimeoutException) {
-                runOnUiThread { showTestResult("❌ Timeout: Servidor não respondeu em 10s", android.graphics.Color.RED) }
-            } catch (e: javax.net.ssl.SSLHandshakeException) {
-                runOnUiThread { showTestResult("❌ Falha SSL: Certificado possivelmente inválido", android.graphics.Color.RED) }
-            } catch (e: javax.net.ssl.SSLException) {
-                runOnUiThread { showTestResult("❌ Erro SSL: ${e.message}", android.graphics.Color.RED) }
-            } catch (e: Exception) {
-                runOnUiThread { showTestResult("❌ Erro inesperado: ${e.message}", android.graphics.Color.RED) }
-            } finally {
-                runOnUiThread {
-                    btnTestEndpoint.isEnabled = true
-                    btnTestEndpoint.text = "Testar Endpoint"
-                }
-            }
-        }.start()
-    }
-
-
-    // NOVO: Teste completo do endpoint com dados simulados
-    private fun testFullEndpoint(client: okhttp3.OkHttpClient, url: String, login: String, password: String) {
-        Thread {
-            try {
+                // JSON de teste
                 val json = org.json.JSONObject().apply {
                     put("usuario", login.ifEmpty { "teste" })
                     put("senha", password.ifEmpty { "teste" })
@@ -212,7 +236,7 @@ class MainActivity : AppCompatActivity() {
                     put("mensagem", "Teste de conectividade do app SMS Redirection")
                     put("timestamp", System.currentTimeMillis())
                     put("device_id", android.os.Build.MODEL ?: "android")
-                    put("teste", true) // Indica que é um teste
+                    put("teste", true)
                 }
 
                 val requestBody = json.toString()
@@ -231,15 +255,15 @@ class MainActivity : AppCompatActivity() {
                                 android.graphics.Color.parseColor("#4CAF50")
                             )
                             401, 403 -> showTestResult(
-                                "⚠️ Endpoint OK, mas credenciais inválidas",
+                                "⚠️ Endpoint respondeu, mas credenciais inválidas",
                                 android.graphics.Color.parseColor("#FF9800")
                             )
                             404 -> showTestResult(
                                 "❌ Endpoint não encontrado (404)",
                                 android.graphics.Color.RED
                             )
-                            500 -> showTestResult(
-                                "⚠️ Erro interno do servidor (500)",
+                            in 500..599 -> showTestResult(
+                                "⚠️ Erro do servidor (${response.code})",
                                 android.graphics.Color.parseColor("#FF9800")
                             )
                             else -> showTestResult(
@@ -249,26 +273,29 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 }
+            } catch (e: java.net.UnknownHostException) {
+                runOnUiThread { showTestResult("❌ Host não encontrado. Verifique a URL.", android.graphics.Color.RED) }
+            } catch (e: java.net.SocketTimeoutException) {
+                runOnUiThread { showTestResult("❌ Timeout: Servidor não respondeu em 10s", android.graphics.Color.RED) }
+            } catch (e: javax.net.ssl.SSLHandshakeException) {
+                runOnUiThread { showTestResult("❌ Falha SSL: Certificado inválido?", android.graphics.Color.RED) }
             } catch (e: Exception) {
+                runOnUiThread { showTestResult("❌ Erro inesperado: ${e.message}", android.graphics.Color.RED) }
+            } finally {
                 runOnUiThread {
-                    showTestResult(
-                        "❌ Erro ao testar endpoint: ${e.message}",
-                        android.graphics.Color.RED
-                    )
+                    btnTestEndpoint.isEnabled = true
+                    btnTestEndpoint.text = "🔗 Testar Endpoint"
                 }
             }
         }.start()
     }
 
-    // NOVO: Exibe resultado do teste
+    // Exibe resultado do teste
     private fun showTestResult(message: String, color: Int) {
         tvStatus.text = message
         tvStatus.setTextColor(color)
-
-        // Reabilita o botão
-        btnTestEndpoint.isEnabled = true
-        btnTestEndpoint.text = "🔗 Testar Endpoint"
     }
+
 
     private fun showHistory() {
         val historyBox = findViewById<LinearLayout>(R.id.historyBox)
